@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="preload" as="image" href="bg-photo.jpg" fetchpriority="high">
+<title>富良野市 周辺天気予報サイネージ</title>
+<style>
+  :root{
+    --ink:#f4f4f5;
+    --ink-dim:#c6c6cc;
+    --ink-faint:#9a9aa2;
+    --line:rgba(255,255,255,0.16);
+    --line-strong:rgba(255,255,255,0.32);
+    --panel:rgba(10,10,12,0.52);
+    --zebra:rgba(255,255,255,0.035);
+    --highlight:rgba(255,255,255,0.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100vw;height:100vh;overflow:hidden;}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
+    color:var(--ink);
+    background:#0a0a0c;
+    position:relative;
+  }
+
+  /* ===================== 背景写真 ===================== */
+  #bg{
+    position:fixed;inset:0;width:100vw;height:100vh;z-index:-2;
+    background-color:#0a0a0c;
+    /* 本番のbg-photo.jpgが読み込まれるまでの間、ページ遷移直後の「黒画面」を避けるための
+       極小サムネイル（LQIP）。数KB程度でHTMLに埋め込んでいるため追加通信は発生しない。 */
+    background-image:url("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAKKADAAQAAAABAAAAFgAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8AAEQgAFgAoAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/bAEMAExMTExMTIBMTIC0gICAtPS0tLS09TT09PT09TV1NTU1NTU1dXV1dXV1dXXBwcHBwcIODg4ODk5OTk5OTk5OTk//bAEMBFxgYJSMlQCMjQJloVWiZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmf/dAAQAA//aAAwDAQACEQMRAD8AyvLNKIjV9bhG5CDip1kB5CL+ddzqo8/kkZ8ds0hwP1p8lnJH1H58VpefIPuqoP1pj3Vx1CJ+hqPalezdjJ8o+lHlN6Vo/wBoXKnhB+VL/aN1/wA8x+VX7UXs33P/0MbeysVB5prMc7gSDmkf/Wt9aQ9/rUXZmT/aZB8rYOKQTMOcn86hf75o7VSYFr7W/Tv9BR9pk/yBVP8AiqSqGf/Z");
+    background-size:cover;
+    background-position:center;
+    filter:blur(1.4vw) saturate(1.15);
+    transform:scale(1.08);
+    transition:filter 0.5s ease, transform 0.5s ease;
+  }
+  #bg.is-loaded{
+    background-image:url("bg-photo.jpg");
+    filter:none;
+    transform:none;
+  }
+  #bg::after{
+    content:"";
+    position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.22) 22%, rgba(0,0,0,0.34) 68%, rgba(0,0,0,0.55) 100%);
+  }
+  #bgshade{position:fixed;inset:0;z-index:-1;}
+
+  /* ===================== レイアウト ===================== */
+  #app{
+    width:100vw;height:100vh;
+    display:flex;flex-direction:column;
+    padding:2.8vh 2.8vw 2.3vh;
+  }
+
+  .title-wrap{text-align:center;margin-bottom:2.2vh;}
+  h1{
+    font-size:2.7vw;
+    font-weight:700;
+    color:#fff;
+    letter-spacing:0.14em;
+    text-shadow:0 0.2vh 1vh rgba(0,0,0,0.6);
+  }
+  .subtitle{
+    margin-top:0.7vh;
+    font-size:1vw;
+    font-weight:500;
+    letter-spacing:0.08em;
+    color:var(--ink-dim);
+    text-shadow:0 0.2vh 0.8vh rgba(0,0,0,0.6);
+  }
+  .subtitle-en{
+    margin-top:0.4vh;
+    font-size:0.72vw;
+    font-weight:600;
+    letter-spacing:0.22em;
+    color:var(--ink-faint);
+    text-transform:uppercase;
+    text-shadow:0 0.2vh 0.8vh rgba(0,0,0,0.6);
+  }
+
+  /* ---- メインパネル ---- */
+  #panel{
+    flex:1;
+    display:flex;flex-direction:column;
+    min-height:0;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:0.8vh;
+    backdrop-filter:blur(10px);
+    overflow:hidden;
+  }
+  .panel-header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:1.5vh 2vw;
+    border-bottom:1px solid var(--line-strong);
+  }
+  .panel-header .ph-title{font-size:1.15vw;font-weight:700;letter-spacing:0.06em;color:#fff;}
+  .panel-header .ph-note{font-size:0.75vw;font-weight:500;color:var(--ink-faint);letter-spacing:0.03em;}
+
+  /* ---- グリッド本体 ---- */
+  #grid{
+    flex:1;
+    display:grid;
+    grid-template-rows: 5vh repeat(6, 1fr);
+    grid-template-columns: 14.5vw repeat(5, 1fr);
+    min-height:0;
+  }
+  .cell{
+    display:flex;align-items:center;justify-content:center;
+    border-bottom:1px solid var(--line);
+  }
+  .row-even{background:var(--zebra);}
+  .head-cell{
+    color:var(--ink-faint);
+    font-size:1vw;font-weight:600;letter-spacing:0.05em;
+    border-bottom:1px solid var(--line-strong);
+    flex-direction:column;gap:0.15vh;
+  }
+  .head-cell .en{font-size:0.6vw;font-weight:500;letter-spacing:0.14em;color:var(--ink-faint);opacity:0.7;text-transform:uppercase;}
+  .corner-cell{color:var(--ink-faint);}
+
+  .city-cell{
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+    font-weight:700;
+    font-size:1.35vw;
+    letter-spacing:0.03em;
+    border-right:1px solid var(--line);
+    border-top:2px solid transparent;
+    position:relative;
+    gap:0.3vh;
+  }
+  .city-text .furigana{font-size:0.62vw;font-weight:500;color:var(--ink-faint);margin-top:0.3vh;letter-spacing:0.16em;text-transform:uppercase;}
+  .city-cell.is-primary{background:var(--highlight);border-top:2px solid #fff;}
+  .primary-tag{
+    display:block;
+    font-size:0.55vw;font-weight:600;color:var(--ink-faint);
+    letter-spacing:0.14em;
+    border:1px solid var(--line-strong);
+    padding:0.1vh 0.6vw;border-radius:999px;
+    margin:0.5vh auto 0;
+    width:fit-content;
+  }
+
+  .wx-cell{flex-direction:column;gap:0.5vh;border-right:1px solid var(--line);}
+  .wx-icon{width:2.1vw;height:2.1vw;color:#fff;opacity:0.95;}
+  .wx-icon svg{width:100%;height:100%;}
+  .wx-temp{font-size:1.4vw;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;}
+  .wx-pop{
+    font-size:0.78vw;font-weight:500;color:var(--ink-dim);
+    display:flex;align-items:center;gap:0.3vw;
+  }
+  .wx-pop svg{width:0.9vw;height:0.9vw;color:#6ec3ff;opacity:0.85;}
+  .wx-cell.error .wx-temp{color:var(--ink-faint);font-size:1vw;}
+  .wx-cell.loading .wx-icon{opacity:0.15;}
+
+  /* ---- フッター ---- */
+  footer{
+    margin-top:1.8vh;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .legend{
+    font-size:0.78vw;font-weight:500;color:var(--ink-faint);
+    letter-spacing:0.04em;
+    text-shadow:0 0.1vh 0.5vh rgba(0,0,0,0.5);
+  }
+  .update-badge{
+    font-size:0.82vw;font-weight:600;color:var(--ink-dim);
+    letter-spacing:0.04em;
+    border:1px solid var(--line-strong);
+    padding:0.55vh 1.4vw;border-radius:999px;
+    background:rgba(0,0,0,0.25);
+  }
+  .update-badge.error{color:#fff;border-color:rgba(255,255,255,0.6);}
+  .footer-right{display:flex;flex-direction:column;align-items:flex-end;gap:0.7vh;}
+  .credit{
+    font-size:0.62vw;font-weight:500;color:var(--ink-faint);
+    letter-spacing:0.03em;
+    text-shadow:0 0.1vh 0.5vh rgba(0,0,0,0.5);
+  }
+  .credit a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.25);}
+
+  /* ---- 時計（右上固定） ---- */
+  #clockbox{position:absolute;top:2.8vh;right:2.8vw;text-align:right;}
+  #clockbox #date{font-size:0.85vw;font-weight:500;color:var(--ink-dim);letter-spacing:0.04em;text-shadow:0 0.2vh 0.6vh rgba(0,0,0,0.6);}
+  #clockbox #clock{font-size:1.7vw;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:0.03em;text-shadow:0 0.2vh 0.6vh rgba(0,0,0,0.6);}
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+
+<div id="app">
+  <div class="title-wrap">
+    <h1>富良野市 周辺 定時天気予報</h1>
+    <div class="subtitle">道内6都市 &nbsp;&nbsp;9 / 12 / 15 / 18 / 21時</div>
+    <div class="subtitle-en">Furano &amp; Hokkaido Area Weather Forecast</div>
+  </div>
+
+  <div id="clockbox">
+    <div id="date">-</div>
+    <div id="clock">--:--:--</div>
+  </div>
+
+  <div id="panel">
+    <div class="panel-header">
+      <div class="ph-title">FORECAST</div>
+      <div class="ph-note">15分ごと自動更新</div>
+    </div>
+    <div id="grid"><!-- JSで生成 --></div>
+  </div>
+
+  <footer>
+    <div class="legend">降水確率 Precipitation ／ 気温 Temp.（℃）</div>
+    <div class="footer-right">
+      <div class="update-badge" id="status">最終更新 Updated: -</div>
+      <div class="credit">Powered by <a href="https://www.weatherapi.com/" target="_blank" rel="noopener">WeatherAPI.com</a></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* ===================== 背景写真の差し替え（黒画面対策） =====================
+   #bgは最初、CSSに埋め込んだ極小ぼかしサムネイルを表示している（追加通信なしで即描画）。
+   本番のbg-photo.jpg（preloadで先読み中／2回目以降はブラウザキャッシュ）の読み込みが
+   完了した時点で、ぼかしを解除して本番画像に差し替える。 */
+(function swapBackgroundPhoto(){
+  const bgFull = new Image();
+  bgFull.onload = () => {
+    document.getElementById("bg").classList.add("is-loaded");
+  };
+  bgFull.src = "bg-photo.jpg";
+})();
+
+/* ===================== 時計の表示切替（静止画キャプチャ対策） =====================
+   このページを定期的にスクリーンショットして静止画としてサイネージに表示する運用の場合、
+   時計は次に撮り直すまで止まって見えてしまう。URLに ?clock=off を付けて開いた時だけ
+   時計を非表示にできるようにしておく（通常のURL・kioskモードでの表示には影響しない）。 */
+if(new URLSearchParams(location.search).get("clock") === "off"){
+  document.getElementById("clockbox").style.display = "none";
+}
+
+/* ===================== 設定 ===================== */
+const CITIES = [
+  { key:"furano",    name:"富良野市", en:"Furano",    lat:43.3416, lon:142.3826, primary:true },
+  { key:"asahikawa", name:"旭川市",   en:"Asahikawa", lat:43.7706, lon:142.3649 },
+  { key:"obihiro",   name:"帯広市",   en:"Obihiro",   lat:42.9237, lon:143.1962 },
+  { key:"sapporo",   name:"札幌市",   en:"Sapporo",   lat:43.0618, lon:141.3545 },
+  { key:"kitami",    name:"北見市",   en:"Kitami",    lat:43.8033, lon:143.8907 },
+  { key:"hakodate",  name:"函館市",   en:"Hakodate",  lat:41.7687, lon:140.7291 },
+];
+const HOURS = ["09","12","15","18","21"];
+const REFRESH_MS = 15 * 60 * 1000;
+// https://www.weatherapi.com/ でアカウント登録後、マイページで発行されるAPIキーに置き換えてください
+const WEATHERAPI_KEY = "8ee62f65eabc4efaade95505262708";
+
+/* ===================== モノクロ天気アイコン (SVG) ===================== */
+const ICONS = {
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/></svg>`,
+  cloud: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 18.5h10.6a3.7 3.7 0 0 0 .6-7.35 5.2 5.2 0 0 0-9.9-1.9 4.3 4.3 0 0 0-1.3 9.25Z"/></svg>`,
+  cloudsun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="7.8" r="2.7"/><path d="M8.2 2.8v1.5M4 5.2l1.1 1.1M2.5 7.8h1.5M13.9 7.8h-1.5M12.8 5.2l-1.1 1.1"/><path d="M9 18.5h8.4a3.5 3.5 0 0 0 .5-6.95 4.6 4.6 0 0 0-7.7-2.55A4 4 0 0 0 9 18.5Z"/></svg>`,
+  fog: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 8.5h13M3 12.5h16.5M4 16.5h13M18 12.5h2.5M17 16.5h3.5"/></svg>`,
+  rain: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 13.6h10.6a3.7 3.7 0 0 0 .5-7.35 5.2 5.2 0 0 0-9.8-1.85 4.3 4.3 0 0 0-1.3 9.2Z"/><path d="M8.5 17.2l-1.1 2.3M12.5 17.2l-1.1 2.3M16.5 17.2l-1.1 2.3"/></svg>`,
+  snow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 13.1h10.6a3.7 3.7 0 0 0 .5-7.35 5.2 5.2 0 0 0-9.8-1.85 4.3 4.3 0 0 0-1.3 9.2Z"/><path d="M9 17.3v3.4M7.4 18.2l3.2 1.6M10.6 18.2l-3.2 1.6M15 17.3v3.4M13.4 18.2l3.2 1.6M16.6 18.2l-3.2 1.6"/></svg>`,
+  thunder: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 12.8h10.6a3.7 3.7 0 0 0 .5-7.35 5.2 5.2 0 0 0-9.8-1.85 4.3 4.3 0 0 0-1.3 9.2Z"/><path d="M13 15.2l-3 4.4h2.4l-1.5 3.6 4.4-5.2h-2.4z" fill="currentColor" stroke="none"/></svg>`,
+};
+/* WeatherAPI.com の条件コード（https://www.weatherapi.com/docs/weather_conditions.json 準拠）
+   → 自作モノクロアイコンへのマッピング。昼夜でコードは変わらない（is_dayは別フラグ）ため
+   Open-Meteo(WMO)時代より単純。 */
+const WX_CODES = {
+  1000:["sun","快晴"],
+  1003:["cloudsun","晴れ時々曇"],
+  1006:["cloud","曇り"], 1009:["cloud","くもり"],
+  1030:["fog","霧"], 1135:["fog","霧"], 1147:["fog","着氷性の霧"],
+  1063:["rain","にわか雨の可能性"], 1150:["rain","弱い霧雨"], 1153:["rain","霧雨"],
+  1168:["rain","着氷性の霧雨"], 1171:["rain","強い着氷性の霧雨"],
+  1180:["rain","弱い雨"], 1183:["rain","弱い雨"], 1186:["rain","雨"], 1189:["rain","雨"],
+  1192:["rain","強い雨"], 1195:["rain","強い雨"],
+  1198:["rain","着氷性の雨"], 1201:["rain","強い着氷性の雨"],
+  1240:["rain","にわか雨"], 1243:["rain","強いにわか雨"], 1246:["rain","激しいにわか雨"],
+  1069:["snow","みぞれの可能性"], 1204:["snow","弱いみぞれ"], 1207:["snow","みぞれ"],
+  1249:["snow","弱いみぞれ"], 1252:["snow","みぞれ"],
+  1066:["snow","雪の可能性"], 1114:["snow","地吹雪"], 1117:["snow","猛吹雪"],
+  1210:["snow","弱い雪"], 1213:["snow","弱い雪"], 1216:["snow","雪"], 1219:["snow","雪"],
+  1222:["snow","強い雪"], 1225:["snow","強い雪"],
+  1237:["snow","あられ"], 1261:["snow","あられ"], 1264:["snow","強いあられ"],
+  1255:["snow","にわか雪"], 1258:["snow","強いにわか雪"],
+  1087:["thunder","雷の可能性"],
+  1273:["thunder","弱い雷雨"], 1276:["thunder","雷雨"],
+  1279:["thunder","雷雪の可能性"], 1282:["thunder","強い雷雪"],
+};
+const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c3 4 5.2 6.9 5.2 9.7A5.2 5.2 0 0 1 6.8 13.2C6.8 10.4 9 7.5 12 3.5Z"/></svg>`;
+/* アイコンの形はモノトーン線画のまま、天気の種類ごとに控えめな色だけを付ける */
+const ICON_COLOR = {
+  sun: "#ffd166",       // 晴れ: 暖かいゴールド
+  cloudsun: "#ffd166",  // 晴れ時々曇: 晴れと同系色
+  cloud: "#cbd5e1",     // 曇り: ニュートラルなライトグレー
+  fog: "#a8b0bd",       // 霧: 落ち着いたグレー
+  rain: "#6ec3ff",      // 雨: スカイブルー
+  snow: "#bfe8ff",      // 雪: 淡いアイスブルー
+  thunder: "#ffb454",   // 雷: アンバー
+};
+function wxKey(code){
+  return (WX_CODES[code] || ["cloud","不明"])[0];
+}
+function wxIcon(code){
+  return ICONS[wxKey(code)] || ICONS.cloud;
+}
+function wxColor(code){
+  return ICON_COLOR[wxKey(code)] || "#ffffff";
+}
+
+/* ===================== グリッド生成 ===================== */
+const grid = document.getElementById("grid");
+
+function buildGrid(){
+  grid.innerHTML = "";
+  const corner = makeCell("head-cell corner-cell", "");
+  corner.innerHTML = `都市<span class="en">City</span>`;
+  grid.appendChild(corner);
+  HOURS.forEach(h => {
+    const hc = makeCell("head-cell", "");
+    hc.innerHTML = `${h}時`;
+    grid.appendChild(hc);
+  });
+
+  CITIES.forEach((city, i) => {
+    const rowClass = i % 2 === 1 ? " row-even" : "";
+    const nameCell = document.createElement("div");
+    nameCell.className = "cell city-cell" + (city.primary ? " is-primary" : "") + rowClass;
+    nameCell.innerHTML =
+      `<div class="city-text">${city.name}<div class="furigana">${city.en}</div></div>${city.primary ? '<span class="primary-tag">MAIN</span>' : ''}`;
+    grid.appendChild(nameCell);
+
+    HOURS.forEach(h => {
+      const c = document.createElement("div");
+      c.className = "cell wx-cell loading" + rowClass;
+      c.id = `wx-${city.key}-${h}`;
+      c.innerHTML = `<div class="wx-icon"></div><div class="wx-temp">--°</div><div class="wx-pop">--%</div>`;
+      grid.appendChild(c);
+    });
+  });
+
+  // キャッシュがあれば通信を待たずに即表示する（サイネージ切り替え直後の空白表示を防止）
+  CITIES.forEach(city => {
+    if(weatherCache[city.key]) renderCity(city.key, weatherCache[city.key]);
+  });
+}
+function makeCell(cls, text){
+  const d = document.createElement("div");
+  d.className = "cell " + cls;
+  d.textContent = text;
+  return d;
+}
+
+/* ===================== ローカルキャッシュ ===================== */
+/* サイネージがこのページに切り替わった瞬間、通信が終わるまで数値が空白になるのを防ぐため、
+   直近の取得結果をlocalStorageに保存し、読み込み直後はまずキャッシュを表示する。 */
+const CACHE_KEY = "furano_weather_cache_v1";
+function loadCache(){
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveCache(cache){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){ /* 保存できなくても表示自体には影響しない */ }
+}
+let weatherCache = loadCache();
+
+/* ===================== 日時ユーティリティ ===================== */
+function todayJST(){
+  return new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+}
+function updateClock(){
+  const now = new Date();
+  const dateFmt = new Intl.DateTimeFormat('ja-JP', { timeZone:'Asia/Tokyo', year:'numeric', month:'long', day:'numeric', weekday:'short' });
+  const timeFmt = new Intl.DateTimeFormat('ja-JP', { timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  document.getElementById("date").textContent = dateFmt.format(now);
+  document.getElementById("clock").textContent = timeFmt.format(now);
+}
+
+/* ===================== データ取得 ===================== */
+async function fetchCity(city){
+  const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHERAPI_KEY}` +
+              `&q=${city.lat},${city.lon}&days=2&aqi=no&alerts=no&lang=ja`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const today = todayJST();
+  // forecast_days=2と同様、日付境界(24時直前など)で当日分の時刻が取れないケースを避けるための保険として
+  // 2日分の時間帯を平坦化してから対象時刻を検索する
+  const hours = data.forecast.forecastday.flatMap(d => d.hour);
+  const out = {};
+  HOURS.forEach(h => {
+    const target = `${today} ${h}:00`;
+    const hourData = hours.find(hh => hh.time === target);
+    if(!hourData){ out[h] = null; return; }
+    out[h] = {
+      temp: Math.round(hourData.temp_c),
+      code: hourData.condition.code,
+      pop: hourData.chance_of_rain,
+    };
+  });
+  return out;
+}
+
+function renderCity(cityKey, hourData){
+  HOURS.forEach(h => {
+    const el = document.getElementById(`wx-${cityKey}-${h}`);
+    if(!el) return;
+    el.classList.remove("loading","error");
+    const d = hourData ? hourData[h] : null;
+    if(!d){
+      el.classList.add("error");
+      el.innerHTML = `<div class="wx-icon">${ICONS.cloud}</div><div class="wx-temp">--</div><div class="wx-pop">--</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="wx-icon" style="color:${wxColor(d.code)}">${wxIcon(d.code)}</div>` +
+                    `<div class="wx-temp">${d.temp}°</div>` +
+                    `<div class="wx-pop">${POP_ICON}${d.pop}%</div>`;
+  });
+}
+
+async function refreshAll(){
+  const statusEl = document.getElementById("status");
+  statusEl.classList.remove("error");
+  statusEl.textContent = "更新中 Updating...";
+  let hadError = false;
+  await Promise.all(CITIES.map(async city => {
+    try{
+      const data = await fetchCity(city);
+      renderCity(city.key, data);
+      weatherCache[city.key] = data;
+    }catch(e){
+      hadError = true;
+      // 取得に失敗した場合は空白にせず、直前のキャッシュがあればそれを表示し続ける
+      if(weatherCache[city.key]){
+        renderCity(city.key, weatherCache[city.key]);
+      }else{
+        renderCity(city.key, null);
+      }
+      console.error("fetch failed for", city.name, e);
+    }
+  }));
+  saveCache(weatherCache);
+  const now = new Intl.DateTimeFormat('ja-JP', { timeZone:'Asia/Tokyo', hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date());
+  if(hadError){
+    statusEl.classList.add("error");
+    statusEl.textContent = `一部取得失敗 Error（${now}）`;
+  }else{
+    statusEl.textContent = `最終更新 Updated: ${now}`;
+  }
+}
+
+/* ===================== 初期化 ===================== */
+buildGrid();
+updateClock();
+setInterval(updateClock, 1000);
+refreshAll();
+setInterval(refreshAll, REFRESH_MS);
+</script>
+</body>
+</html>

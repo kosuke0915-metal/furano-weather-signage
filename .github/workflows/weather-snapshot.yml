@@ -1,0 +1,47 @@
+name: Weather Snapshot
+
+# サイネージのループ表示用に、公開中のindex.htmlを定期的にスクリーンショットして
+# GitHub Pages（このリポジトリ自身のgh-pagesブランチ）に公開するワークフロー。
+# Xサーバー側の認証情報は一切不要（GitHubが自動発行するGITHUB_TOKENのみ使用）。
+# これにより、サイネージのループ側は「HTMLページの読み込み」ではなく「静止画の表示」に
+# なるため、ページ遷移時の黒画面を回避できる。
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # 30分ごと。頻度を変えたい場合はこの値を編集してください（例: 3時間ごとなら "0 */3 * * *"）
+  workflow_dispatch:          # GitHubの画面から手動実行したいときのため
+
+permissions:
+  contents: write            # gh-pagesブランチへのpushに必要
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Playwright (Chromium)
+        run: npx -y playwright@latest install --with-deps chromium
+
+      - name: Take screenshot of the live page
+        # ?clock=off を付けて、静止画では止まって見えてしまう時計を非表示にした状態で撮影する
+        run: >
+          npx -y playwright@latest screenshot
+          --browser=chromium
+          --viewport-size=1920,1080
+          --wait-for-timeout=5000
+          "https://furano-design.com/studiouc/furano-weather-signage/index.html?clock=off"
+          weather-snapshot.png
+
+      - name: Prepare publish directory
+        run: |
+          mkdir -p public
+          mv weather-snapshot.png public/weather-snapshot.png
+
+      - name: Publish to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          force_orphan: true   # 履歴を積み上げず、毎回1コミットに置き換える（リポジトリ肥大化防止）
